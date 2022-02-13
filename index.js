@@ -21,6 +21,15 @@ client.once('ready', () => {
 	console.log('Ready!');
 });
 
+client.once('reconnecting', () => {
+	console.log('Reconnecting!');
+});
+
+
+client.once('disconnect', () => {
+	console.log('Disconnect!');
+});
+
 client.on('interactionCreate', async interaction => {
 	if (!interaction.isCommand()) return;
 
