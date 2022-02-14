@@ -1,49 +1,150 @@
-const fs = require('fs');
-const { Client, Collection, Intents } = require('discord.js');
-const { token } = require('./config.json');
+const Discord = require("discord.js");
+const { prefix, token } = require("./config.json");
+const ytdl = require("ytdl-core");
 
-// Create a new client instance
-const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
+const client = new Discord.Client();
 
-client.commands = new Collection();
+const queue = new Map();
 
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
-
-for (const file of commandFiles) {
-	const command = require(`./commands/${file}`);
-	// Set a new item in the Collection
-	// With the key as the command name and the value as the exported module
-	client.commands.set(command.data.name, command);
-}
-
-// When the client is ready, run this code (only once)
-client.once('ready', () => {
-	console.log('Ready!');
+client.once("ready", () => {
+	console.log("Ready!");
 });
 
-client.once('reconnecting', () => {
-	console.log('Reconnecting!');
+client.once("reconnecting", () => {
+	console.log("Reconnecting!");
 });
 
-
-client.once('disconnect', () => {
-	console.log('Disconnect!');
+client.once("disconnect", () => {
+	console.log("Disconnect!");
 });
 
-client.on('interactionCreate', async interaction => {
-	if (!interaction.isCommand()) return;
+client.on("message", async message => {
+	if (message.author.bot) return;
+	if (!message.content.startsWith(prefix)) return;
 
-	const command = client.commands.get(interaction.commandName);
+	const serverQueue = queue.get(message.guild.id);
 
-	if (!command) return;
+	if (message.content.startsWith(`${prefix}play`)) {
+		const validator = validateYouTubeUrl(message.content.replace('?play', '').trim());
+		if(validator == true){
+			execute(message, serverQueue);
+			return;
+		} else {
+			message.channel.send("¡Tienes que poner un link valido!");
+		}
 
-	try {
-		await command.execute(interaction);
-	} catch (error) {
-		console.error(error);
-		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+	} else if (message.content.startsWith(`${prefix}skip`)) {
+		skip(message, serverQueue);
+		return;
+	} else if (message.content.startsWith(`${prefix}stop`)) {
+		stop(message, serverQueue);
+		return;
+	} else {
+		message.channel.send("¡Tienes que poner un comando valido!");
 	}
 });
 
-// Login to Discord with your client's token
+function validateYouTubeUrl(urlToParse){
+	if (urlToParse) {
+		console.log(urlToParse)
+		const regExp = /^(?:https?:\/\/)?(?:m\.|www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})(?:\S+)?$/;
+		if (urlToParse.match(regExp)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+async function execute(message, serverQueue) {
+	const args = message.content.split(" ");
+
+	const voiceChannel = message.member.voice.channel;
+	if (!voiceChannel)
+		return message.channel.send(
+			"¡Necesitas estar en un canal de voz para reproducir música!"
+		);
+	const permissions = voiceChannel.permissionsFor(message.client.user);
+	if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
+		return message.channel.send(
+			"¡Necesito permisos para poder entrar en el canal de voz!"
+		);
+	}
+
+	const songInfo = await ytdl.getInfo(args[1]);
+	const song = {
+		title: songInfo.videoDetails.title,
+		url: songInfo.videoDetails.video_url,
+	};
+
+	if (!serverQueue) {
+		const queueContruct = {
+			textChannel: message.channel,
+			voiceChannel: voiceChannel,
+			connection: null,
+			songs: [],
+			volume: 5,
+			playing: true
+		};
+
+		queue.set(message.guild.id, queueContruct);
+
+		queueContruct.songs.push(song);
+
+		try {
+			var connection = await voiceChannel.join();
+			queueContruct.connection = connection;
+			play(message.guild, queueContruct.songs[0]);
+		} catch (err) {
+			console.log(err);
+			queue.delete(message.guild.id);
+			return message.channel.send(err);
+		}
+	} else {
+		serverQueue.songs.push(song);
+		return message.channel.send(`¡${song.title} se ha añadido a la lista de espera!`);
+	}
+}
+
+function skip(message, serverQueue) {
+	if (!message.member.voice.channel)
+		return message.channel.send(
+			"¡Necesitas estar en un canal de voz para poder saltar de música!"
+		);
+	if (!serverQueue)
+		return message.channel.send("¡No hay ninguna canción la cual pueda saltar!");
+	serverQueue.connection.dispatcher.end();
+}
+
+function stop(message, serverQueue) {
+	if (!message.member.voice.channel)
+		return message.channel.send(
+			"¡Necesitas estar en un canal de voz para poder parar musica!"
+		);
+
+	if (!serverQueue)
+		return message.channel.send("¡No hay ninguna canción para poder parar!");
+
+	serverQueue.songs = [];
+	serverQueue.connection.dispatcher.end();
+}
+
+function play(guild, song) {
+	const serverQueue = queue.get(guild.id);
+	if (!song) {
+		serverQueue.voiceChannel.leave();
+		queue.delete(guild.id);
+		return;
+	}
+
+	const dispatcher = serverQueue.connection
+		.play(ytdl(song.url))
+		.on("finish", () => {
+			serverQueue.songs.shift();
+			play(guild, serverQueue.songs[0]);
+		})
+		.on("error", error => console.error(error));
+	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
+	serverQueue.textChannel.send(`Reproduciendo: **${song.title}**`);
+}
+
 client.login(token);
