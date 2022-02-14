@@ -1,0 +1,32 @@
+{
+  "name": "musicbotdiscord",
+  "version": "1.0.0",
+  "description": "Bot de Discord para reproducir musica",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KazzyWeirdo/MusicBotDiscord.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KazzyWeirdo/MusicBotDiscord/issues"
+  },
+  "homepage": "https://github.com/KazzyWeirdo/MusicBotDiscord#readme",
+  "dependencies": {
+    "@discordjs/builders": "^0.12.0",
+    "@discordjs/opus": "^0.5.3",
+    "@discordjs/rest": "^0.3.0",
+    "@discordjs/voice": "^0.8.0",
+    "discord-api-types": "^0.27.0",
+    "discord.js": "^12.5.3",
+    "ffmpeg": "^0.0.4",
+    "ffmpeg-static": "^4.4.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "libsodium-wrappers": "^0.7.9",
+    "ytdl-core": "^4.10.1"
+  }
+}
