@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 const { prefix, token } = require("./config.json");
 const ytdl = require("ytdl-core");
 
-const client = new Discord.Client();
+const client = new Discord.Client({autoReconnect:true});
 
 const queue = new Map();
 
@@ -139,14 +139,22 @@ function play(guild, song) {
 	}
 
 	const dispatcher = serverQueue.connection
-		.play(ytdl(song.url))
+		.play(ytdl(song.url, {quality: 'highestaudio'}))
 		.on("finish", () => {
 			serverQueue.songs.shift();
 			play(guild, serverQueue.songs[0]);
 		})
-		.on("error", error => console.error(error));
+		.on("error", (error) => {
+			serverQueue.songs.shift();
+			play(guild, serverQueue.songs[0]);
+			console.error(error);
+		})
 	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
 	serverQueue.textChannel.send(`Reproduciendo: **${song.title}**`);
 }
+
+client.on('shardError', error => {
+	console.error('A websocket connection encountered an error:', error);
+});
 
 client.login(token);
