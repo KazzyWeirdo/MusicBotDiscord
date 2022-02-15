@@ -39,6 +39,8 @@ client.on("message", async message => {
 	} else if (message.content.startsWith(`${prefix}stop`)) {
 		stop(message, serverQueue);
 		return;
+	} else if (message.content.startsWith(`${prefix}help`)) {
+		message.channel.send("Lista de comandos:\n?play {link}: Reproduce musica a través de un link de Youtube.\n?stop: Para la música que esté reproduciendo el bot.\n?skip: Salta a la siguiente música que esté en la lista de espera.");
 	} else {
 		message.channel.send("¡Tienes que poner un comando valido!");
 	}
