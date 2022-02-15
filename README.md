@@ -1,3 +1,3 @@
 # MusicBotDiscord
 
-Bot de Discord para crear musica
+Bot de Discord para reproducir musica
